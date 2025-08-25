@@ -9,45 +9,44 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
   const chartInstanceRef = useRef(null);
 
   useEffect(() => {
-    if (!data || data.length === 0 || !chartRef.current) {
-      console.log('DXChartComponent: No data or chart ref available');
+    if (!data || data.length === 0) {
+      console.log('DXChartComponent: No data available');
       return;
     }
 
-    console.log('DXChartComponent: Processing data', { dataLength: data.length, firstItem: data[0] });
+    if (!chartRef.current) {
+      console.log('DXChartComponent: Chart container not available');
+      return;
+    }
+
+    console.log('DXChartComponent: Starting chart setup with data:', { dataLength: data.length, firstItem: data[0] });
 
     // Clean up previous instance
     if (chartInstanceRef.current) {
       try {
         chartInstanceRef.current.destroy();
+        console.log('DXChartComponent: Previous chart destroyed');
       } catch (e) {
         console.warn('Error destroying previous chart:', e);
       }
       chartInstanceRef.current = null;
     }
 
-    // Format data for DXCharts - use milliseconds directly
-    const chartData = data.map((item, index) => ({
-      time: item.timestamp, // Keep as milliseconds
-      value: Number(item.hamValue) || 0,
-      movingAverage: item.movingAverage ? Number(item.movingAverage) : null,
-      volume: Number(item.volume) || 0,
-      index // Add index for debugging
-    }));
-
-    console.log('DXChartComponent: Formatted data', { chartDataLength: chartData.length, firstChartItem: chartData[0] });
-
-    // Ensure container has proper dimensions
-    const container = chartRef.current;
-    container.style.width = '800px';
-    container.style.height = '400px';
-    container.style.backgroundColor = 'white';
-
     try {
-      console.log('DXChartComponent: Creating chart with container:', container);
+      // Create a simple test dataset first
+      const testData = [
+        { time: Date.now() - 300000, value: 125.5 },
+        { time: Date.now() - 240000, value: 126.7 },
+        { time: Date.now() - 180000, value: 128.2 },
+        { time: Date.now() - 120000, value: 127.8 },
+        { time: Date.now() - 60000, value: 129.1 },
+      ];
 
-      // Create chart with minimal configuration first
-      const chart = createChart(container, {
+      console.log('DXChartComponent: Using test data for initial setup');
+
+      // Create chart instance
+      console.log('DXChartComponent: Creating chart...');
+      const chart = createChart(chartRef.current, {
         width: 800,
         height: 400,
         layout: {
@@ -55,165 +54,92 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
           textColor: 'black',
         },
         grid: {
-          vertLines: {
-            color: 'rgba(197, 203, 206, 0.5)',
-          },
-          horzLines: {
-            color: 'rgba(197, 203, 206, 0.5)',
-          },
+          vertLines: { color: 'rgba(197, 203, 206, 0.5)' },
+          horzLines: { color: 'rgba(197, 203, 206, 0.5)' },
         },
-        crosshair: {
-          mode: 'normal',
-        },
-        rightPriceScale: {
-          borderColor: 'rgba(197, 203, 206, 0.8)',
-        },
-        timeScale: {
-          borderColor: 'rgba(197, 203, 206, 0.8)',
-          timeVisible: true,
-          secondsVisible: false,
-        },
+        crosshair: { mode: 'normal' },
+        rightPriceScale: { borderColor: 'rgba(197, 203, 206, 0.8)' },
+        timeScale: { borderColor: 'rgba(197, 203, 206, 0.8)' },
       });
 
-      console.log('DXChartComponent: Chart created successfully', chart);
+      console.log('DXChartComponent: Chart created successfully');
       chartInstanceRef.current = chart;
 
-      // Add main line series
-      console.log('DXChartComponent: Adding main line series');
-      const mainSeries = chart.addLineSeries({
+      // Add line series
+      console.log('DXChartComponent: Adding line series...');
+      const lineSeries = chart.addLineSeries({
         color: '#2196F3',
         lineWidth: 2,
-        title: '23-27# Trmd Selected Ham',
+        title: 'Test Data',
       });
-      console.log('DXChartComponent: Main series created', mainSeries);
 
-      // Prepare data for main series
-      const mainSeriesData = chartData.map(item => ({
-        time: item.time,
-        value: item.value
-      }));
-      console.log('DXChartComponent: Main series data prepared', { length: mainSeriesData.length, firstItem: mainSeriesData[0] });
+      console.log('DXChartComponent: Setting test data...');
+      lineSeries.setData(testData);
 
-      // Set data for main series
-      mainSeries.setData(mainSeriesData);
-      console.log('DXChartComponent: Main series data set successfully');
+      console.log('DXChartComponent: Test chart setup complete');
 
-      // Add moving average series if enabled
-      if (showMovingAverage) {
-        console.log('DXChartComponent: Adding moving average series');
-        const maSeries = chart.addLineSeries({
-          color: '#FF9800',
-          lineWidth: 2,
-          lineStyle: 1, // Dashed line
-          title: 'Moving Average (20)',
-        });
+      // Now try with real data if available
+      if (data && data.length > 0) {
+        setTimeout(() => {
+          try {
+            console.log('DXChartComponent: Switching to real data...');
 
-        // Filter out null values for moving average
-        const maData = chartData
-          .filter(item => item.movingAverage !== null && !isNaN(item.movingAverage))
-          .map(item => ({
-            time: item.time,
-            value: item.movingAverage
-          }));
+            // Clear existing data
+            lineSeries.setData([]);
 
-        console.log('DXChartComponent: MA data prepared', { length: maData.length, firstItem: maData[0] });
+            // Format real data
+            const realData = data.map(item => ({
+              time: item.timestamp,
+              value: Number(item.hamValue) || 0
+            }));
 
-        if (maData.length > 0) {
-          maSeries.setData(maData);
-          console.log('DXChartComponent: Moving average data set successfully');
-        }
+            console.log('DXChartComponent: Real data formatted:', { length: realData.length, firstItem: realData[0] });
+
+            // Set real data
+            lineSeries.setData(realData);
+            console.log('DXChartComponent: Real data set successfully');
+
+            // Update series title
+            chart.applyOptions({
+              title: '23-27# Trmd Selected Ham'
+            });
+
+            // Fit content
+            setTimeout(() => {
+              try {
+                chart.timeScale().fitContent();
+                console.log('DXChartComponent: Content fitted');
+              } catch (e) {
+                console.warn('Error fitting content:', e);
+              }
+            }, 100);
+
+          } catch (error) {
+            console.error('Error switching to real data:', error);
+          }
+        }, 500); // Small delay to ensure chart is ready
       }
 
-      // Add volume histogram series
-      console.log('DXChartComponent: Adding volume series');
-      const volumeSeries = chart.addHistogramSeries({
-        color: '#26a69a',
-        title: 'Volume',
-        priceScaleId: '',
-        scaleMargins: {
-          top: 0.8,
-          bottom: 0,
-        },
-      });
-
-      const volumeData = chartData.map(item => ({
-        time: item.time,
-        value: item.volume,
-        color: '#26a69a' // Simplified color for now
-      }));
-
-      console.log('DXChartComponent: Volume data prepared', { length: volumeData.length, firstItem: volumeData[0] });
-      volumeSeries.setData(volumeData);
-      console.log('DXChartComponent: Volume data set successfully');
-
-      // Add crosshair move handler for tooltips
-      chart.subscribeCrosshairMove((param) => {
-        console.log('Crosshair move:', param);
-        if (param.time) {
-          const dataPoint = chartData.find(item => item.time === param.time);
-          if (dataPoint) {
-            console.log('Found data point:', dataPoint);
-            const tooltip = document.getElementById('chart-tooltip');
-            if (tooltip) {
-              const time = new Date(dataPoint.time);
-              tooltip.innerHTML = `
-                <div style="background: rgba(0,0,0,0.8); color: white; padding: 10px; border-radius: 4px; font-size: 12px;">
-                  <div><strong>Time:</strong> ${time.toLocaleString()}</div>
-                  <div><strong>Value:</strong> ${dataPoint.value.toFixed(2)}</div>
-                  ${showMovingAverage && dataPoint.movingAverage ? `<div><strong>MA(20):</strong> ${dataPoint.movingAverage.toFixed(2)}</div>` : ''}
-                  <div><strong>Volume:</strong> ${dataPoint.volume}</div>
-                </div>
-              `;
-              tooltip.style.display = 'block';
-            }
-          }
-        }
-      });
-
-      // Fit content to show all data
-      setTimeout(() => {
-        try {
-          chart.timeScale().fitContent();
-          console.log('DXChartComponent: Chart content fitted');
-        } catch (e) {
-          console.warn('Error fitting content:', e);
-        }
-      }, 100);
-
-      console.log('DXChartComponent: Chart setup completed successfully');
-
     } catch (error) {
-      console.error('Error creating DXCharts instance:', error);
-      console.error('Error details:', error.stack);
+      console.error('Error in DXChartComponent:', error);
+      console.error('Error stack:', error.stack);
     }
 
-    // Cleanup function
+    // Cleanup
     return () => {
       if (chartInstanceRef.current) {
         try {
           chartInstanceRef.current.destroy();
-          console.log('DXChartComponent: Chart destroyed successfully');
+          console.log('DXChartComponent: Chart cleaned up');
         } catch (error) {
-          console.warn('Error destroying chart:', error);
+          console.warn('Error cleaning up chart:', error);
         }
         chartInstanceRef.current = null;
       }
     };
   }, [data, showMovingAverage]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (chartInstanceRef.current) {
-        try {
-          chartInstanceRef.current.destroy();
-        } catch (error) {
-          console.warn('Error destroying chart on unmount:', error);
-        }
-        chartInstanceRef.current = null;
-      }
-    };
-  }, []);
+  console.log('DXChartComponent: Rendering component');
 
   return (
     <div className="dx-chart-container" style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
@@ -222,9 +148,9 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
         style={{
           width: '800px',
           height: '400px',
-          border: '1px solid #e0e0e0',
-          borderRadius: '4px',
-          backgroundColor: 'white',
+          border: '2px solid #2196F3',
+          borderRadius: '8px',
+          backgroundColor: '#f8f9fa',
           position: 'relative'
         }}
       />
@@ -237,9 +163,11 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
           display: 'none',
           zIndex: 1000,
           pointerEvents: 'none',
-          background: 'white',
-          border: '1px solid #ccc',
-          borderRadius: '4px'
+          background: 'rgba(0,0,0,0.8)',
+          color: 'white',
+          padding: '8px',
+          borderRadius: '4px',
+          fontSize: '12px'
         }}
       />
     </div>
