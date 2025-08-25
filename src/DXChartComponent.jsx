@@ -29,32 +29,53 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
 
   const drawChart = (chartData) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.error('Canvas not available');
+      return;
+    }
+
+    console.log('Drawing chart with data:', chartData.length, 'points');
+    console.log('First data point:', chartData[0]);
 
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
 
-    // Clear canvas
-    ctx.fillStyle = 'white';
+    // Clear canvas with light background
+    ctx.fillStyle = '#f8f9fa';
     ctx.fillRect(0, 0, width, height);
 
+    // Add border to make it clear there's a chart area
+    ctx.strokeStyle = '#28a745';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(1, 1, width - 2, height - 2);
+
     // Chart margins
-    const margin = { top: 20, right: 20, bottom: 40, left: 60 };
+    const margin = { top: 60, right: 30, bottom: 60, left: 80 };
     const chartWidth = width - margin.left - margin.right;
     const chartHeight = height - margin.top - margin.bottom;
 
-    // Get data range
+    // Get data range with padding
     const values = chartData.map(d => Number(d.hamValue) || 0);
+    console.log('Values array:', values);
+
+    if (values.length === 0) {
+      console.error('No values to display');
+      return;
+    }
+
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
     const valueRange = maxValue - minValue || 1;
+    const padding = valueRange * 0.1; // 10% padding
 
-    // Draw grid lines
-    ctx.strokeStyle = '#e0e0e0';
+    console.log('Chart dimensions:', { minValue, maxValue, valueRange, chartWidth, chartHeight });
+
+    // Draw background grid
+    ctx.strokeStyle = '#ddd';
     ctx.lineWidth = 1;
 
-    // Horizontal grid lines
+    // Horizontal grid lines and labels
     for (let i = 0; i <= 5; i++) {
       const y = margin.top + (chartHeight * i) / 5;
       ctx.beginPath();
@@ -63,41 +84,39 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
       ctx.stroke();
 
       // Y-axis labels
-      const value = maxValue - (valueRange * i) / 5;
-      ctx.fillStyle = '#666';
-      ctx.font = '12px Arial';
+      const value = minValue - padding + (valueRange + 2 * padding) * (5 - i) / 5;
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'right';
-      ctx.fillText(value.toFixed(2), margin.left - 10, y + 4);
+      ctx.fillText('$' + value.toFixed(2), margin.left - 15, y + 5);
     }
 
-    // Vertical grid lines
-    for (let i = 0; i <= chartData.length; i++) {
+    // Vertical grid lines and time labels
+    for (let i = 0; i < chartData.length; i++) {
       const x = margin.left + (chartWidth * i) / Math.max(chartData.length - 1, 1);
       ctx.beginPath();
       ctx.moveTo(x, margin.top);
       ctx.lineTo(x, height - margin.bottom);
       ctx.stroke();
 
-      // X-axis labels (time)
-      if (i < chartData.length) {
-        const time = new Date(chartData[i].timestamp);
-        ctx.fillStyle = '#666';
-        ctx.font = '10px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                    x, height - margin.bottom + 15);
-      }
+      // Time labels
+      const time = new Date(chartData[i].timestamp);
+      ctx.fillStyle = '#333';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                  x, height - margin.bottom + 20);
     }
 
-    // Draw data line
+    // Draw main data line
     if (chartData.length > 1) {
       ctx.strokeStyle = '#2196F3';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 4;
       ctx.beginPath();
 
       chartData.forEach((point, index) => {
         const x = margin.left + (chartWidth * index) / (chartData.length - 1);
-        const y = margin.top + chartHeight - ((Number(point.hamValue) - minValue) / valueRange) * chartHeight;
+        const y = margin.top + chartHeight - ((Number(point.hamValue) - minValue + padding) / (valueRange + 2 * padding)) * chartHeight;
 
         if (index === 0) {
           ctx.moveTo(x, y);
@@ -109,22 +128,35 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
       ctx.stroke();
     }
 
-    // Draw data points
-    ctx.fillStyle = '#2196F3';
+    // Draw BIG data points with clear visibility
     chartData.forEach((point, index) => {
       const x = margin.left + (chartWidth * index) / (chartData.length - 1);
-      const y = margin.top + chartHeight - ((Number(point.hamValue) - minValue) / valueRange) * chartHeight;
+      const y = margin.top + chartHeight - ((Number(point.hamValue) - minValue + padding) / (valueRange + 2 * padding)) * chartHeight;
 
+      // Outer white circle for visibility
+      ctx.fillStyle = 'white';
       ctx.beginPath();
-      ctx.arc(x, y, 4, 0, 2 * Math.PI);
+      ctx.arc(x, y, 8, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Inner blue circle
+      ctx.fillStyle = '#2196F3';
+      ctx.beginPath();
+      ctx.arc(x, y, 6, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Center dot
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, 2 * Math.PI);
       ctx.fill();
     });
 
     // Draw moving average if enabled
-    if (showMovingAverage && chartData.length > 20) {
+    if (showMovingAverage && chartData.length >= 20) {
       ctx.strokeStyle = '#FF9800';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 4]);
       ctx.beginPath();
 
       let firstPoint = true;
@@ -135,7 +167,7 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
           const avg = sum / 20;
 
           const x = margin.left + (chartWidth * index) / (chartData.length - 1);
-          const y = margin.top + chartHeight - ((avg - minValue) / valueRange) * chartHeight;
+          const y = margin.top + chartHeight - ((avg - minValue + padding) / (valueRange + 2 * padding)) * chartHeight;
 
           if (firstPoint) {
             ctx.moveTo(x, y);
@@ -150,23 +182,34 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
       ctx.setLineDash([]);
     }
 
-    // Draw axis labels
-    ctx.fillStyle = '#333';
-    ctx.font = '14px Arial';
+    // Draw title
+    ctx.fillStyle = '#2c3e50';
+    ctx.font = 'bold 18px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('23-27# Trmd Selected Ham Price Chart', width / 2, 15);
+    ctx.fillText('23-27# Trmd Selected Ham Price Chart', width / 2, 25);
+
+    // Draw subtitle with data info
+    ctx.fillStyle = '#666';
+    ctx.font = '14px Arial';
+    ctx.fillText(`${chartData.length} Data Points • Hover for Details`, width / 2, 45);
 
     // Y-axis title
     ctx.save();
-    ctx.translate(15, height / 2);
+    ctx.translate(25, height / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 14px Arial';
     ctx.fillText('Price ($)', 0, 0);
     ctx.restore();
 
     // X-axis title
     ctx.textAlign = 'center';
-    ctx.fillText('Time', width / 2, height - 5);
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText('Time', width / 2, height - 15);
+
+    console.log('Chart drawing completed successfully!');
   };
 
   const handleMouseMove = (event) => {
