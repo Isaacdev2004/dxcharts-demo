@@ -130,8 +130,36 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
 
       // Add crosshair interaction for tooltips
       chart.subscribeCrosshairMove((param) => {
-        const tooltip = document.getElementById('chart-tooltip');
-        if (!tooltip) return;
+        // Find tooltip element - try multiple ways
+        let tooltip = document.getElementById('chart-tooltip');
+
+        // If not found by ID, try finding by class
+        if (!tooltip) {
+          tooltip = document.querySelector('.chart-tooltip');
+        }
+
+        // If still not found, create one dynamically
+        if (!tooltip) {
+          tooltip = document.createElement('div');
+          tooltip.id = 'chart-tooltip';
+          tooltip.className = 'chart-tooltip';
+          tooltip.style.cssText = `
+            position: absolute;
+            top: 50px;
+            left: 20px;
+            display: none;
+            z-index: 1000;
+            pointer-events: none;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            min-width: 200px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          `;
+          document.body.appendChild(tooltip);
+        }
 
         if (param.time) {
           const dataPoint = data.find(item =>
@@ -283,23 +311,17 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
         }}
       />
 
-      {/* Tooltip */}
+      {/* Tooltip - will be created dynamically if needed */}
       <div
         id="chart-tooltip"
+        className="chart-tooltip"
         style={{
           position: 'absolute',
           top: '50px',
           left: '20px',
           display: 'none',
           zIndex: 1000,
-          pointerEvents: 'none',
-          background: 'rgba(0,0,0,0.9)',
-          color: 'white',
-          padding: '12px',
-          borderRadius: '6px',
-          fontSize: '13px',
-          minWidth: '200px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+          pointerEvents: 'none'
         }}
       />
 
