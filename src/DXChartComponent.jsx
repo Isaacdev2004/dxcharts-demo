@@ -16,192 +16,206 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
       return;
     }
 
-    if (!chartRef.current) {
-      setChartStatus('error');
-      setError('Chart container not available');
-      return;
-    }
-
     setChartStatus('creating');
     setError(null);
 
-    // Clean up previous instance
-    if (chartInstanceRef.current) {
-      try {
-        chartInstanceRef.current.destroy();
-        console.log('Previous DXCharts instance destroyed');
-      } catch (e) {
-        console.warn('Error destroying previous chart:', e);
+    // Add a small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      // Try multiple ways to get the chart container
+      let container = chartRef.current;
+      if (!container) {
+        container = document.getElementById('dx-chart-container');
       }
-      chartInstanceRef.current = null;
-    }
+      if (!container) {
+        container = document.querySelector('[ref="chartRef"]');
+      }
+      
+      if (!container) {
+        setChartStatus('error');
+        setError('Chart container not available - please refresh the page');
+        return;
+      }
 
-    try {
-      console.log('Initializing DXCharts with data:', data.length, 'points');
-      console.log('First data point:', data[0]);
+      // Clean up previous instance
+      if (chartInstanceRef.current) {
+        try {
+          chartInstanceRef.current.destroy();
+          console.log('Previous DXCharts instance destroyed');
+        } catch (e) {
+          console.warn('Error destroying previous chart:', e);
+        }
+        chartInstanceRef.current = null;
+      }
 
-      // Create DXCharts instance
-      const chart = createChart(chartRef.current, {
-        width: 800,
-        height: 400,
-        layout: {
-          background: { type: 'solid', color: 'white' },
-          textColor: 'black',
-        },
-        grid: {
-          vertLines: { color: 'rgba(197, 203, 206, 0.5)' },
-          horzLines: { color: 'rgba(197, 203, 206, 0.5)' },
-        },
-        crosshair: { mode: 'normal' },
-        rightPriceScale: {
-          borderColor: 'rgba(197, 203, 206, 0.8)',
-          visible: true,
-        },
-        timeScale: {
-          borderColor: 'rgba(197, 203, 206, 0.8)',
-          timeVisible: true,
-          secondsVisible: false,
-        },
-      });
+      try {
+        console.log('Initializing DXCharts with data:', data.length, 'points');
+        console.log('First data point:', data[0]);
+        console.log('Chart container element:', container);
 
-      chartInstanceRef.current = chart;
-      console.log('DXCharts instance created successfully');
-
-      // Add main line series for 23-27# Trmd Selected Ham
-      const mainSeries = chart.addLineSeries({
-        color: '#2196F3',
-        lineWidth: 3,
-        title: '23-27# Trmd Selected Ham',
-        priceFormat: {
-          type: 'price',
-          precision: 2,
-          minMove: 0.01,
-        },
-      });
-
-      // Format data for DXCharts
-      const chartData = data.map(item => ({
-        time: Math.floor(item.timestamp / 1000), // Convert to Unix timestamp in seconds
-        value: Number(item.hamValue) || 0,
-        volume: Number(item.volume) || 0,
-        open: Number(item.open) || Number(item.hamValue) || 0,
-        high: Number(item.high) || Number(item.hamValue) || 0,
-        low: Number(item.low) || Number(item.hamValue) || 0,
-        close: Number(item.close) || Number(item.hamValue) || 0,
-      }));
-
-      console.log('Setting main series data:', chartData.length, 'points');
-      console.log('Sample data point:', chartData[0]);
-      mainSeries.setData(chartData);
-
-      // Add moving average series if enabled
-      if (showMovingAverage && data.length >= 20) {
-        console.log('Adding moving average series');
-        const maSeries = chart.addLineSeries({
-          color: '#FF9800',
-          lineWidth: 2,
-          lineStyle: 1, // Dashed line
-          title: 'Moving Average (20)',
+        // Create DXCharts instance
+        const chart = createChart(container, {
+          width: 800,
+          height: 400,
+          layout: {
+            background: { type: 'solid', color: 'white' },
+            textColor: 'black',
+          },
+          grid: {
+            vertLines: { color: 'rgba(197, 203, 206, 0.5)' },
+            horzLines: { color: 'rgba(197, 203, 206, 0.5)' },
+          },
+          crosshair: { mode: 'normal' },
+          rightPriceScale: {
+            borderColor: 'rgba(197, 203, 206, 0.8)',
+            visible: true,
+          },
+          timeScale: {
+            borderColor: 'rgba(197, 203, 206, 0.8)',
+            timeVisible: true,
+            secondsVisible: false,
+          },
         });
 
-        // Calculate moving average data
-        const maData = [];
-        for (let i = 19; i < data.length; i++) {
-          const sum = data.slice(i - 19, i + 1)
-            .reduce((acc, curr) => acc + (Number(curr.hamValue) || 0), 0);
-          const avg = sum / 20;
+        chartInstanceRef.current = chart;
+        console.log('DXCharts instance created successfully');
 
-          maData.push({
-            time: Math.floor(data[i].timestamp / 1000),
-            value: Number(avg.toFixed(2))
+        // Add main line series for 23-27# Trmd Selected Ham
+        const mainSeries = chart.addLineSeries({
+          color: '#2196F3',
+          lineWidth: 3,
+          title: '23-27# Trmd Selected Ham',
+          priceFormat: {
+            type: 'price',
+            precision: 2,
+            minMove: 0.01,
+          },
+        });
+
+        // Format data for DXCharts
+        const chartData = data.map(item => ({
+          time: Math.floor(item.timestamp / 1000), // Convert to Unix timestamp in seconds
+          value: Number(item.hamValue) || 0,
+          volume: Number(item.volume) || 0,
+          open: Number(item.open) || Number(item.hamValue) || 0,
+          high: Number(item.high) || Number(item.hamValue) || 0,
+          low: Number(item.low) || Number(item.hamValue) || 0,
+          close: Number(item.close) || Number(item.hamValue) || 0,
+        }));
+
+        console.log('Setting main series data:', chartData.length, 'points');
+        console.log('Sample data point:', chartData[0]);
+        mainSeries.setData(chartData);
+
+        // Add moving average series if enabled
+        if (showMovingAverage && data.length >= 20) {
+          console.log('Adding moving average series');
+          const maSeries = chart.addLineSeries({
+            color: '#FF9800',
+            lineWidth: 2,
+            lineStyle: 1, // Dashed line
+            title: 'Moving Average (20)',
           });
-        }
 
-        console.log('Setting MA data:', maData.length, 'points');
-        if (maData.length > 0) {
-          maSeries.setData(maData);
-        }
-      }
+          // Calculate moving average data
+          const maData = [];
+          for (let i = 19; i < data.length; i++) {
+            const sum = data.slice(i - 19, i + 1)
+              .reduce((acc, curr) => acc + (Number(curr.hamValue) || 0), 0);
+            const avg = sum / 20;
 
-      // Add volume histogram series
-      console.log('Adding volume histogram series');
-      const volumeSeries = chart.addHistogramSeries({
-        color: '#26a69a',
-        title: 'Volume',
-        priceScaleId: '',
-        scaleMargins: {
-          top: 0.8,
-          bottom: 0,
-        },
-      });
-
-      const volumeData = chartData.map(item => ({
-        time: item.time,
-        value: item.volume,
-        color: item.close > item.open ? '#26a69a' : '#ef5350'
-      }));
-
-      console.log('Setting volume data:', volumeData.length, 'points');
-      volumeSeries.setData(volumeData);
-
-      // Add crosshair interaction for tooltips
-      chart.subscribeCrosshairMove((param) => {
-        console.log('Crosshair move:', param);
-
-        const tooltip = document.getElementById('dx-tooltip');
-        if (!tooltip) return;
-
-        if (param.time) {
-          // Find the data point closest to the hovered time
-          const dataPoint = data.find(item =>
-            Math.abs(Math.floor(item.timestamp / 1000) - param.time) < 300 // Within 5 minutes
-          );
-
-          if (dataPoint) {
-            console.log('Found data point for tooltip:', dataPoint);
-            const time = new Date(dataPoint.timestamp);
-
-            tooltip.innerHTML = `
-              <div style="font-weight: bold; margin-bottom: 8px; color: #2196F3;">📊 23-27# Trmd Selected Ham</div>
-              <div style="margin-bottom: 4px;"><strong>Time:</strong> ${time.toLocaleString()}</div>
-              <div style="margin-bottom: 4px;"><strong>Price:</strong> $${Number(dataPoint.hamValue).toFixed(2)}</div>
-              <div style="margin-bottom: 4px;"><strong>Volume:</strong> ${dataPoint.volume.toLocaleString()} lbs</div>
-              ${showMovingAverage ? '<div><strong>MA(20):</strong> Available on chart</div>' : ''}
-            `;
-
-            tooltip.style.display = 'block';
-            tooltip.style.position = 'fixed';
-            tooltip.style.left = '20px';
-            tooltip.style.top = '20px';
-            tooltip.style.zIndex = '9999';
+            maData.push({
+              time: Math.floor(data[i].timestamp / 1000),
+              value: Number(avg.toFixed(2))
+            });
           }
-        } else {
-          tooltip.style.display = 'none';
+
+          console.log('Setting MA data:', maData.length, 'points');
+          if (maData.length > 0) {
+            maSeries.setData(maData);
+          }
         }
-      });
 
-      // Fit content to show all data
-      setTimeout(() => {
-        try {
-          chart.timeScale().fitContent();
-          console.log('DXCharts content fitted successfully');
-        } catch (e) {
-          console.warn('Error fitting content:', e);
-        }
-      }, 500);
+        // Add volume histogram series
+        console.log('Adding volume histogram series');
+        const volumeSeries = chart.addHistogramSeries({
+          color: '#26a69a',
+          title: 'Volume',
+          priceScaleId: '',
+          scaleMargins: {
+            top: 0.8,
+            bottom: 0,
+          },
+        });
 
-      setChartStatus('ready');
-      console.log('DXCharts setup completed successfully!');
+        const volumeData = chartData.map(item => ({
+          time: item.time,
+          value: item.volume,
+          color: item.close > item.open ? '#26a69a' : '#ef5350'
+        }));
 
-    } catch (error) {
-      console.error('DXCharts creation error:', error);
-      console.error('Error details:', error.stack);
-      setError(error.message || 'Failed to create DXCharts instance');
-      setChartStatus('error');
-    }
+        console.log('Setting volume data:', volumeData.length, 'points');
+        volumeSeries.setData(volumeData);
+
+        // Add crosshair interaction for tooltips
+        chart.subscribeCrosshairMove((param) => {
+          console.log('Crosshair move:', param);
+
+          const tooltip = document.getElementById('dx-tooltip');
+          if (!tooltip) return;
+
+          if (param.time) {
+            // Find the data point closest to the hovered time
+            const dataPoint = data.find(item =>
+              Math.abs(Math.floor(item.timestamp / 1000) - param.time) < 300 // Within 5 minutes
+            );
+
+            if (dataPoint) {
+              console.log('Found data point for tooltip:', dataPoint);
+              const time = new Date(dataPoint.timestamp);
+
+              tooltip.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 8px; color: #2196F3;">📊 23-27# Trmd Selected Ham</div>
+                <div style="margin-bottom: 4px;"><strong>Time:</strong> ${time.toLocaleString()}</div>
+                <div style="margin-bottom: 4px;"><strong>Price:</strong> $${Number(dataPoint.hamValue).toFixed(2)}</div>
+                <div style="margin-bottom: 4px;"><strong>Volume:</strong> ${dataPoint.volume.toLocaleString()} lbs</div>
+                ${showMovingAverage ? '<div><strong>MA(20):</strong> Available on chart</div>' : ''}
+              `;
+
+              tooltip.style.display = 'block';
+              tooltip.style.position = 'fixed';
+              tooltip.style.left = '20px';
+              tooltip.style.top = '20px';
+              tooltip.style.zIndex = '9999';
+            }
+          } else {
+            tooltip.style.display = 'none';
+          }
+        });
+
+        // Fit content to show all data
+        setTimeout(() => {
+          try {
+            chart.timeScale().fitContent();
+            console.log('DXCharts content fitted successfully');
+          } catch (e) {
+            console.warn('Error fitting content:', e);
+          }
+        }, 500);
+
+        setChartStatus('ready');
+        console.log('DXCharts setup completed successfully!');
+
+      } catch (error) {
+        console.error('DXCharts creation error:', error);
+        console.error('Error details:', error.stack);
+        setError(error.message || 'Failed to create DXCharts instance');
+        setChartStatus('error');
+      }
+    }, 100); // Small delay to ensure DOM is ready
 
     // Cleanup function
     return () => {
+      clearTimeout(timer);
       if (chartInstanceRef.current) {
         try {
           chartInstanceRef.current.destroy();
@@ -303,13 +317,15 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
       {/* Main Chart Container */}
       <div
         ref={chartRef}
+        id="dx-chart-container"
         style={{
           width: '800px',
           height: '400px',
           border: '2px solid #28a745',
           borderRadius: '8px',
           backgroundColor: 'white',
-          position: 'relative'
+          position: 'relative',
+          display: 'block'
         }}
       />
 
