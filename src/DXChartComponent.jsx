@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createChart } from '@devexperts/dxcharts-lite';
 
 /**
- * Simple HTML5 Canvas Chart Component
- * More reliable than external libraries for basic functionality
+ * Official Devexperts DXCharts Component
  */
 const DXChartComponent = ({ data, showMovingAverage = false }) => {
-  const canvasRef = useRef(null);
+  const chartRef = useRef(null);
+  const chartInstanceRef = useRef(null);
   const [chartStatus, setChartStatus] = useState('loading');
-  const [hoveredData, setHoveredData] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!data || data.length === 0) {
@@ -15,242 +16,203 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
       return;
     }
 
+    if (!chartRef.current) {
+      setChartStatus('error');
+      setError('Chart container not available');
+      return;
+    }
+
     setChartStatus('creating');
+    setError(null);
+
+    // Clean up previous instance
+    if (chartInstanceRef.current) {
+      try {
+        chartInstanceRef.current.destroy();
+        console.log('Previous DXCharts instance destroyed');
+      } catch (e) {
+        console.warn('Error destroying previous chart:', e);
+      }
+      chartInstanceRef.current = null;
+    }
 
     try {
-      drawChart(data);
-      setChartStatus('ready');
-      console.log('Chart drawn successfully with', data.length, 'data points');
-    } catch (error) {
-      console.error('Chart drawing error:', error);
-      setChartStatus('error');
-    }
-  }, [data, showMovingAverage]);
+      console.log('Initializing DXCharts with data:', data.length, 'points');
+      console.log('First data point:', data[0]);
 
-  const drawChart = (chartData) => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      console.error('Canvas not available');
-      return;
-    }
-
-    console.log('Drawing chart with data:', chartData.length, 'points');
-    console.log('First data point:', chartData[0]);
-
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-
-    // Clear canvas with light background
-    ctx.fillStyle = '#f8f9fa';
-    ctx.fillRect(0, 0, width, height);
-
-    // Add border to make it clear there's a chart area
-    ctx.strokeStyle = '#28a745';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(1, 1, width - 2, height - 2);
-
-    // Chart margins
-    const margin = { top: 60, right: 30, bottom: 60, left: 80 };
-    const chartWidth = width - margin.left - margin.right;
-    const chartHeight = height - margin.top - margin.bottom;
-
-    // Get data range with padding
-    const values = chartData.map(d => Number(d.hamValue) || 0);
-    console.log('Values array:', values);
-
-    if (values.length === 0) {
-      console.error('No values to display');
-      return;
-    }
-
-    const minValue = Math.min(...values);
-    const maxValue = Math.max(...values);
-    const valueRange = maxValue - minValue || 1;
-    const padding = valueRange * 0.1; // 10% padding
-
-    console.log('Chart dimensions:', { minValue, maxValue, valueRange, chartWidth, chartHeight });
-
-    // Draw background grid
-    ctx.strokeStyle = '#ddd';
-    ctx.lineWidth = 1;
-
-    // Horizontal grid lines and labels
-    for (let i = 0; i <= 5; i++) {
-      const y = margin.top + (chartHeight * i) / 5;
-      ctx.beginPath();
-      ctx.moveTo(margin.left, y);
-      ctx.lineTo(width - margin.right, y);
-      ctx.stroke();
-
-      // Y-axis labels
-      const value = minValue - padding + (valueRange + 2 * padding) * (5 - i) / 5;
-      ctx.fillStyle = '#333';
-      ctx.font = 'bold 14px Arial';
-      ctx.textAlign = 'right';
-      ctx.fillText('$' + value.toFixed(2), margin.left - 15, y + 5);
-    }
-
-    // Vertical grid lines and time labels
-    for (let i = 0; i < chartData.length; i++) {
-      const x = margin.left + (chartWidth * i) / Math.max(chartData.length - 1, 1);
-      ctx.beginPath();
-      ctx.moveTo(x, margin.top);
-      ctx.lineTo(x, height - margin.bottom);
-      ctx.stroke();
-
-      // Time labels
-      const time = new Date(chartData[i].timestamp);
-      ctx.fillStyle = '#333';
-      ctx.font = '12px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                  x, height - margin.bottom + 20);
-    }
-
-    // Draw main data line
-    if (chartData.length > 1) {
-      ctx.strokeStyle = '#2196F3';
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-
-      chartData.forEach((point, index) => {
-        const x = margin.left + (chartWidth * index) / (chartData.length - 1);
-        const y = margin.top + chartHeight - ((Number(point.hamValue) - minValue + padding) / (valueRange + 2 * padding)) * chartHeight;
-
-        if (index === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
+      // Create DXCharts instance
+      const chart = createChart(chartRef.current, {
+        width: 800,
+        height: 400,
+        layout: {
+          background: { type: 'solid', color: 'white' },
+          textColor: 'black',
+        },
+        grid: {
+          vertLines: { color: 'rgba(197, 203, 206, 0.5)' },
+          horzLines: { color: 'rgba(197, 203, 206, 0.5)' },
+        },
+        crosshair: { mode: 'normal' },
+        rightPriceScale: {
+          borderColor: 'rgba(197, 203, 206, 0.8)',
+          visible: true,
+        },
+        timeScale: {
+          borderColor: 'rgba(197, 203, 206, 0.8)',
+          timeVisible: true,
+          secondsVisible: false,
+        },
       });
 
-      ctx.stroke();
-    }
+      chartInstanceRef.current = chart;
+      console.log('DXCharts instance created successfully');
 
-    // Draw BIG data points with clear visibility
-    chartData.forEach((point, index) => {
-      const x = margin.left + (chartWidth * index) / (chartData.length - 1);
-      const y = margin.top + chartHeight - ((Number(point.hamValue) - minValue + padding) / (valueRange + 2 * padding)) * chartHeight;
+      // Add main line series for 23-27# Trmd Selected Ham
+      const mainSeries = chart.addLineSeries({
+        color: '#2196F3',
+        lineWidth: 3,
+        title: '23-27# Trmd Selected Ham',
+        priceFormat: {
+          type: 'price',
+          precision: 2,
+          minMove: 0.01,
+        },
+      });
 
-      // Outer white circle for visibility
-      ctx.fillStyle = 'white';
-      ctx.beginPath();
-      ctx.arc(x, y, 8, 0, 2 * Math.PI);
-      ctx.fill();
+      // Format data for DXCharts
+      const chartData = data.map(item => ({
+        time: Math.floor(item.timestamp / 1000), // Convert to Unix timestamp in seconds
+        value: Number(item.hamValue) || 0,
+        volume: Number(item.volume) || 0,
+        open: Number(item.open) || Number(item.hamValue) || 0,
+        high: Number(item.high) || Number(item.hamValue) || 0,
+        low: Number(item.low) || Number(item.hamValue) || 0,
+        close: Number(item.close) || Number(item.hamValue) || 0,
+      }));
 
-      // Inner blue circle
-      ctx.fillStyle = '#2196F3';
-      ctx.beginPath();
-      ctx.arc(x, y, 6, 0, 2 * Math.PI);
-      ctx.fill();
+      console.log('Setting main series data:', chartData.length, 'points');
+      console.log('Sample data point:', chartData[0]);
+      mainSeries.setData(chartData);
 
-      // Center dot
-      ctx.fillStyle = 'white';
-      ctx.beginPath();
-      ctx.arc(x, y, 2, 0, 2 * Math.PI);
-      ctx.fill();
-    });
+      // Add moving average series if enabled
+      if (showMovingAverage && data.length >= 20) {
+        console.log('Adding moving average series');
+        const maSeries = chart.addLineSeries({
+          color: '#FF9800',
+          lineWidth: 2,
+          lineStyle: 1, // Dashed line
+          title: 'Moving Average (20)',
+        });
 
-    // Draw moving average if enabled
-    if (showMovingAverage && chartData.length >= 20) {
-      ctx.strokeStyle = '#FF9800';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([8, 4]);
-      ctx.beginPath();
-
-      let firstPoint = true;
-      chartData.forEach((point, index) => {
-        if (index >= 19) {
-          const sum = chartData.slice(index - 19, index + 1)
+        // Calculate moving average data
+        const maData = [];
+        for (let i = 19; i < data.length; i++) {
+          const sum = data.slice(i - 19, i + 1)
             .reduce((acc, curr) => acc + (Number(curr.hamValue) || 0), 0);
           const avg = sum / 20;
 
-          const x = margin.left + (chartWidth * index) / (chartData.length - 1);
-          const y = margin.top + chartHeight - ((avg - minValue + padding) / (valueRange + 2 * padding)) * chartHeight;
+          maData.push({
+            time: Math.floor(data[i].timestamp / 1000),
+            value: Number(avg.toFixed(2))
+          });
+        }
 
-          if (firstPoint) {
-            ctx.moveTo(x, y);
-            firstPoint = false;
-          } else {
-            ctx.lineTo(x, y);
+        console.log('Setting MA data:', maData.length, 'points');
+        if (maData.length > 0) {
+          maSeries.setData(maData);
+        }
+      }
+
+      // Add volume histogram series
+      console.log('Adding volume histogram series');
+      const volumeSeries = chart.addHistogramSeries({
+        color: '#26a69a',
+        title: 'Volume',
+        priceScaleId: '',
+        scaleMargins: {
+          top: 0.8,
+          bottom: 0,
+        },
+      });
+
+      const volumeData = chartData.map(item => ({
+        time: item.time,
+        value: item.volume,
+        color: item.close > item.open ? '#26a69a' : '#ef5350'
+      }));
+
+      console.log('Setting volume data:', volumeData.length, 'points');
+      volumeSeries.setData(volumeData);
+
+      // Add crosshair interaction for tooltips
+      chart.subscribeCrosshairMove((param) => {
+        console.log('Crosshair move:', param);
+
+        const tooltip = document.getElementById('dx-tooltip');
+        if (!tooltip) return;
+
+        if (param.time) {
+          // Find the data point closest to the hovered time
+          const dataPoint = data.find(item =>
+            Math.abs(Math.floor(item.timestamp / 1000) - param.time) < 300 // Within 5 minutes
+          );
+
+          if (dataPoint) {
+            console.log('Found data point for tooltip:', dataPoint);
+            const time = new Date(dataPoint.timestamp);
+
+            tooltip.innerHTML = `
+              <div style="font-weight: bold; margin-bottom: 8px; color: #2196F3;">📊 23-27# Trmd Selected Ham</div>
+              <div style="margin-bottom: 4px;"><strong>Time:</strong> ${time.toLocaleString()}</div>
+              <div style="margin-bottom: 4px;"><strong>Price:</strong> $${Number(dataPoint.hamValue).toFixed(2)}</div>
+              <div style="margin-bottom: 4px;"><strong>Volume:</strong> ${dataPoint.volume.toLocaleString()} lbs</div>
+              ${showMovingAverage ? '<div><strong>MA(20):</strong> Available on chart</div>' : ''}
+            `;
+
+            tooltip.style.display = 'block';
+            tooltip.style.position = 'fixed';
+            tooltip.style.left = '20px';
+            tooltip.style.top = '20px';
+            tooltip.style.zIndex = '9999';
           }
+        } else {
+          tooltip.style.display = 'none';
         }
       });
 
-      ctx.stroke();
-      ctx.setLineDash([]);
+      // Fit content to show all data
+      setTimeout(() => {
+        try {
+          chart.timeScale().fitContent();
+          console.log('DXCharts content fitted successfully');
+        } catch (e) {
+          console.warn('Error fitting content:', e);
+        }
+      }, 500);
+
+      setChartStatus('ready');
+      console.log('DXCharts setup completed successfully!');
+
+    } catch (error) {
+      console.error('DXCharts creation error:', error);
+      console.error('Error details:', error.stack);
+      setError(error.message || 'Failed to create DXCharts instance');
+      setChartStatus('error');
     }
 
-    // Draw title
-    ctx.fillStyle = '#2c3e50';
-    ctx.font = 'bold 18px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('23-27# Trmd Selected Ham Price Chart', width / 2, 25);
-
-    // Draw subtitle with data info
-    ctx.fillStyle = '#666';
-    ctx.font = '14px Arial';
-    ctx.fillText(`${chartData.length} Data Points • Hover for Details`, width / 2, 45);
-
-    // Y-axis title
-    ctx.save();
-    ctx.translate(25, height / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#333';
-    ctx.font = 'bold 14px Arial';
-    ctx.fillText('Price ($)', 0, 0);
-    ctx.restore();
-
-    // X-axis title
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#333';
-    ctx.font = 'bold 14px Arial';
-    ctx.fillText('Time', width / 2, height - 15);
-
-    console.log('Chart drawing completed successfully!');
-  };
-
-  const handleMouseMove = (event) => {
-    if (!data || data.length === 0) return;
-
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-
-    const margin = { top: 20, right: 20, bottom: 40, left: 60 };
-    const chartWidth = canvas.width - margin.left - margin.right;
-    const chartHeight = canvas.height - margin.top - margin.bottom;
-
-    // Find closest data point
-    const values = data.map(d => Number(d.hamValue) || 0);
-    const minValue = Math.min(...values);
-    const maxValue = Math.max(...values);
-    const valueRange = maxValue - minValue || 1;
-
-    let closestIndex = 0;
-    let minDistance = Infinity;
-
-    data.forEach((point, index) => {
-      const dataX = margin.left + (chartWidth * index) / (data.length - 1);
-      const dataY = margin.top + chartHeight - ((Number(point.hamValue) - minValue) / valueRange) * chartHeight;
-
-      const distance = Math.sqrt(Math.pow(x - dataX, 2) + Math.pow(y - dataY, 2));
-
-      if (distance < minDistance && distance < 20) { // 20px radius
-        minDistance = distance;
-        closestIndex = index;
+    // Cleanup function
+    return () => {
+      if (chartInstanceRef.current) {
+        try {
+          chartInstanceRef.current.destroy();
+          console.log('DXCharts instance cleaned up');
+        } catch (error) {
+          console.warn('Error cleaning up DXCharts:', error);
+        }
+        chartInstanceRef.current = null;
       }
-    });
-
-    if (minDistance < 20) {
-      setHoveredData(data[closestIndex]);
-    } else {
-      setHoveredData(null);
-    }
-  };
+    };
+  }, [data, showMovingAverage]);
 
   // Show different states
   if (chartStatus === 'loading') {
@@ -267,8 +229,9 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
         color: '#666'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '18px', marginBottom: '10px' }}>📊</div>
-          <div>Loading Chart...</div>
+          <div style={{ fontSize: '24px', marginBottom: '15px' }}>📊</div>
+          <div style={{ fontSize: '16px', fontWeight: 'bold' }}>Loading DXCharts...</div>
+          <div style={{ fontSize: '12px', marginTop: '5px' }}>Initializing Devexperts DXCharts</div>
         </div>
       </div>
     );
@@ -288,8 +251,8 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
         color: '#666'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '18px', marginBottom: '10px' }}>📄</div>
-          <div>No Data Available</div>
+          <div style={{ fontSize: '24px', marginBottom: '15px' }}>📄</div>
+          <div style={{ fontSize: '16px', fontWeight: 'bold' }}>No Data Available</div>
           <div style={{ fontSize: '12px', marginTop: '5px' }}>Please load CSV data first</div>
         </div>
       </div>
@@ -310,9 +273,9 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
         color: '#721c24'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '18px', marginBottom: '10px' }}>⚠️</div>
-          <div>Chart Error</div>
-          <div style={{ fontSize: '12px', marginTop: '5px' }}>Please check console for details</div>
+          <div style={{ fontSize: '24px', marginBottom: '15px' }}>⚠️</div>
+          <div style={{ fontSize: '16px', fontWeight: 'bold' }}>DXCharts Error</div>
+          <div style={{ fontSize: '12px', marginTop: '5px' }}>{error}</div>
         </div>
       </div>
     );
@@ -323,68 +286,96 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
       {/* Chart Status Indicator */}
       <div style={{
         position: 'absolute',
-        top: '10px',
-        right: '10px',
+        top: '15px',
+        right: '15px',
         background: '#28a745',
         color: 'white',
-        padding: '4px 8px',
-        borderRadius: '4px',
-        fontSize: '11px',
-        zIndex: 100
+        padding: '6px 12px',
+        borderRadius: '6px',
+        fontSize: '12px',
+        fontWeight: 'bold',
+        zIndex: 100,
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
       }}>
-        ✅ Chart Ready
+        ✅ DXCharts Ready
       </div>
 
-      {/* Main Chart Canvas */}
-      <canvas
-        ref={canvasRef}
-        width={800}
-        height={400}
-        onMouseMove={handleMouseMove}
+      {/* Main Chart Container */}
+      <div
+        ref={chartRef}
         style={{
+          width: '800px',
+          height: '400px',
           border: '2px solid #28a745',
           borderRadius: '8px',
           backgroundColor: 'white',
-          cursor: 'crosshair'
+          position: 'relative'
         }}
       />
 
+      {/* Legend */}
+      <div style={{
+        position: 'absolute',
+        bottom: '10px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        background: 'rgba(255,255,255,0.9)',
+        padding: '8px 16px',
+        borderRadius: '6px',
+        fontSize: '12px',
+        display: 'flex',
+        gap: '20px',
+        zIndex: 100,
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ width: '12px', height: '2px', backgroundColor: '#2196F3' }}></div>
+          <span>Price</span>
+        </div>
+        {showMovingAverage && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ width: '12px', height: '2px', backgroundColor: '#FF9800', borderStyle: 'dashed', borderWidth: '1px 0' }}></div>
+            <span>MA(20)</span>
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ width: '8px', height: '8px', backgroundColor: '#26a69a' }}></div>
+          <span>Volume</span>
+        </div>
+      </div>
+
       {/* Tooltip */}
-      {hoveredData && (
-        <div style={{
-          position: 'absolute',
-          top: '50px',
-          left: '20px',
+      <div
+        id="dx-tooltip"
+        style={{
+          display: 'none',
           background: 'rgba(0,0,0,0.9)',
           color: 'white',
           padding: '12px',
           borderRadius: '6px',
           fontSize: '13px',
-          minWidth: '200px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          minWidth: '250px',
+          maxWidth: '300px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
           zIndex: 1000,
           pointerEvents: 'none'
-        }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>📊 Data Point</div>
-          <div>⏰ Time: {new Date(hoveredData.timestamp).toLocaleString()}</div>
-          <div>📈 Value: ${Number(hoveredData.hamValue).toFixed(2)}</div>
-          <div>📦 Volume: {hoveredData.volume}</div>
-          {showMovingAverage && <div>📊 MA(20): Available</div>}
-        </div>
-      )}
+        }}
+      />
 
       {/* Chart Instructions */}
       <div style={{
-        marginTop: '10px',
+        marginTop: '15px',
         textAlign: 'center',
         color: '#666',
-        fontSize: '14px'
+        fontSize: '14px',
+        padding: '10px'
       }}>
-        <div><strong>📈 Interactive Chart Features:</strong></div>
-        <div style={{ fontSize: '12px', marginTop: '5px' }}>
-          • Hover over data points for details<br/>
-          • This is a simple HTML5 Canvas chart<br/>
-          • Shows your 23-27# Trmd Selected Ham data
+        <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>🎯 DXCharts Features:</div>
+        <div style={{ fontSize: '12px', lineHeight: '1.4' }}>
+          • <strong>Hover:</strong> Move mouse over chart for detailed tooltips<br/>
+          • <strong>Zoom:</strong> Use mouse wheel to zoom in/out<br/>
+          • <strong>Pan:</strong> Click and drag to navigate through time<br/>
+          • <strong>Legend:</strong> Shows Price, MA(20), and Volume series
         </div>
       </div>
     </div>
