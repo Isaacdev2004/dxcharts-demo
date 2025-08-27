@@ -79,43 +79,28 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
         chartInstanceRef.current = chart;
         console.log('DXCharts instance created successfully');
 
-        // Add main line series for 23-27# Trmd Selected Ham
-        const mainSeries = chart.addLineSeries({
-          color: '#2196F3',
-          lineWidth: 3,
-          title: '23-27# Trmd Selected Ham',
-          priceFormat: {
-            type: 'price',
-            precision: 2,
-            minMove: 0.01,
-          },
-        });
-
-        // Format data for DXCharts
+        // Format data for DXCharts - simplified structure
         const chartData = data.map(item => ({
           time: Math.floor(item.timestamp / 1000), // Convert to Unix timestamp in seconds
           value: Number(item.hamValue) || 0,
-          volume: Number(item.volume) || 0,
-          open: Number(item.open) || Number(item.hamValue) || 0,
-          high: Number(item.high) || Number(item.hamValue) || 0,
-          low: Number(item.low) || Number(item.hamValue) || 0,
-          close: Number(item.close) || Number(item.hamValue) || 0,
         }));
 
         console.log('Setting main series data:', chartData.length, 'points');
         console.log('Sample data point:', chartData[0]);
+
+        // Add main line series for 23-27# Trmd Selected Ham
+        const mainSeries = chart.addLineSeries({
+          color: '#2196F3',
+          lineWidth: 3,
+        });
+
+        // Set data to main series
         mainSeries.setData(chartData);
 
         // Add moving average series if enabled
         if (showMovingAverage && data.length >= 20) {
           console.log('Adding moving average series');
-          const maSeries = chart.addLineSeries({
-            color: '#FF9800',
-            lineWidth: 2,
-            lineStyle: 1, // Dashed line
-            title: 'Moving Average (20)',
-          });
-
+          
           // Calculate moving average data
           const maData = [];
           for (let i = 19; i < data.length; i++) {
@@ -131,6 +116,10 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
 
           console.log('Setting MA data:', maData.length, 'points');
           if (maData.length > 0) {
+            const maSeries = chart.addLineSeries({
+              color: '#FF9800',
+              lineWidth: 2,
+            });
             maSeries.setData(maData);
           }
         }
@@ -139,18 +128,11 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
         console.log('Adding volume histogram series');
         const volumeSeries = chart.addHistogramSeries({
           color: '#26a69a',
-          title: 'Volume',
-          priceScaleId: '',
-          scaleMargins: {
-            top: 0.8,
-            bottom: 0,
-          },
         });
 
         const volumeData = chartData.map(item => ({
           time: item.time,
-          value: item.volume,
-          color: item.close > item.open ? '#26a69a' : '#ef5350'
+          value: Number(data.find(d => Math.floor(d.timestamp / 1000) === item.time)?.volume || 0),
         }));
 
         console.log('Setting volume data:', volumeData.length, 'points');
