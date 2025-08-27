@@ -88,14 +88,44 @@ const DXChartComponent = ({ data, showMovingAverage = false }) => {
         console.log('Setting main series data:', chartData.length, 'points');
         console.log('Sample data point:', chartData[0]);
 
-        // Add main line series for 23-27# Trmd Selected Ham
-        const mainSeries = chart.addLineSeries({
-          color: '#2196F3',
-          lineWidth: 3,
-        });
+        // Add main line series for 23-27# Trmd Selected Ham  
+        console.log('Chart object methods:', Object.getOwnPropertyNames(chart));
+        console.log('Chart prototype methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(chart)));
+        console.log('Chart object:', chart);
+        
+        // Try different API approaches
+        let mainSeries;
+        try {
+          if (typeof chart.addLineSeries === 'function') {
+            mainSeries = chart.addLineSeries({
+              color: '#2196F3',
+              lineWidth: 3,
+            });
+          } else if (typeof chart.addSeries === 'function') {
+            mainSeries = chart.addSeries('line', {
+              color: '#2196F3',
+              lineWidth: 3,
+            });
+          } else if (typeof chart.createLineSeries === 'function') {
+            mainSeries = chart.createLineSeries({
+              color: '#2196F3',
+              lineWidth: 3,
+            });
+          } else {
+            throw new Error('No valid line series method found on chart object');
+          }
+        } catch (seriesError) {
+          console.error('Error creating line series:', seriesError);
+          console.log('Available chart methods:', Object.getOwnPropertyNames(chart).filter(prop => typeof chart[prop] === 'function'));
+          throw seriesError;
+        }
 
         // Set data to main series
-        mainSeries.setData(chartData);
+        if (mainSeries && typeof mainSeries.setData === 'function') {
+          mainSeries.setData(chartData);
+        } else {
+          console.error('mainSeries.setData is not available');
+        }
 
         // Add moving average series if enabled
         if (showMovingAverage && data.length >= 20) {
