@@ -94,8 +94,8 @@ function App() {
   return (
     <div className="app-container">
       <header className="app-header">
-        <h1>DXCharts Integration Demo</h1>
-        <p>Interactive time-series visualization of "23-27# Trmd Selected Ham" data</p>
+              <h1>Professional Chart Demo</h1>
+      <p>Interactive time-series visualization of "23-27# Trmd Selected Ham" data</p>
       </header>
 
       <div className="controls-section">
