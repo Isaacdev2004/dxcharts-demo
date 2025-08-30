@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import DXChartComponent from './DXChartComponent';
+import TradingInterface from './TradingInterface';
+import './TradingInterface.css';
 import { loadCSVFile, parseCSVForCharts, calculateMovingAverage } from './csvParser';
 
 /**
- * Main App Component for DXCharts Demo
+ * Main App Component for Professional Trading Interface
  */
 function App() {
   const [chartData, setChartData] = useState([]);
@@ -11,6 +13,7 @@ function App() {
   const [error, setError] = useState(null);
   const [showMovingAverage, setShowMovingAverage] = useState(false);
   const [dataStats, setDataStats] = useState({});
+  const [viewMode, setViewMode] = useState('trading'); // 'trading' or 'simple'
 
   useEffect(() => {
     loadAndProcessData();
@@ -67,35 +70,105 @@ function App() {
 
   if (loading) {
     return (
-      <div className="app-container">
-        <div className="loading">
-          <h2>Loading DXCharts Demo...</h2>
-          <div className="spinner"></div>
-          <p>Parsing CSV data and initializing chart</p>
-        </div>
+      <div style={{ 
+        height: '100vh', 
+        background: '#1e222d', 
+        color: '#d1d4dc', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        flexDirection: 'column',
+        gap: '20px'
+      }}>
+        <div style={{ fontSize: '24px' }}>⚡</div>
+        <h2>Loading Professional Trading Interface...</h2>
+        <p>Initializing market data and charts</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="app-container">
-        <div className="error">
-          <h2>Error Loading Data</h2>
-          <p>{error}</p>
-          <button onClick={handleRefresh} className="retry-button">
-            Retry
-          </button>
-        </div>
+      <div style={{ 
+        height: '100vh', 
+        background: '#1e222d', 
+        color: '#d1d4dc', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        flexDirection: 'column',
+        gap: '20px'
+      }}>
+        <div style={{ fontSize: '24px' }}>⚠️</div>
+        <h2>Error Loading Market Data</h2>
+        <p>{error}</p>
+        <button 
+          onClick={handleRefresh} 
+          style={{
+            background: '#2196f3',
+            color: 'white',
+            border: 'none',
+            padding: '12px 24px',
+            borderRadius: '6px',
+            cursor: 'pointer'
+          }}
+        >
+          Retry Connection
+        </button>
       </div>
     );
   }
 
+  // Show Trading Interface (TradingView-style)
+  if (viewMode === 'trading') {
+    return <TradingInterface data={chartData} />;
+  }
+
+  // Show Simple Chart View
   return (
     <div className="app-container">
+      {/* View Mode Toggle */}
+      <div style={{
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        zIndex: 1000,
+        display: 'flex',
+        gap: '8px'
+      }}>
+        <button
+          onClick={() => setViewMode('trading')}
+          style={{
+            background: viewMode === 'trading' ? '#2196f3' : '#3a3e4a',
+            color: 'white',
+            border: 'none',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '12px'
+          }}
+        >
+          Trading View
+        </button>
+        <button
+          onClick={() => setViewMode('simple')}
+          style={{
+            background: viewMode === 'simple' ? '#2196f3' : '#3a3e4a',
+            color: 'white',
+            border: 'none',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '12px'
+          }}
+        >
+          Simple View
+        </button>
+      </div>
+
       <header className="app-header">
-              <h1>Professional Chart Demo</h1>
-      <p>Interactive time-series visualization of "23-27# Trmd Selected Ham" data</p>
+        <h1>Professional Chart Demo</h1>
+        <p>Interactive time-series visualization of "23-27# Trmd Selected Ham" data</p>
       </header>
 
       <div className="controls-section">
