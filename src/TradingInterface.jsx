@@ -6,14 +6,12 @@ import {
   PointElement,
   LineElement,
   BarElement,
-  CandlestickController,
-  CandlestickElement,
   Title,
   Tooltip,
   Legend,
 } from 'chart.js';
 import { Chart } from 'react-chartjs-2';
-import 'chartjs-adapter-date-fns';
+
 
 // Register Chart.js components
 ChartJS.register(
@@ -44,27 +42,20 @@ const TradingInterface = ({ data }) => {
 
   const timeframes = ['1M', '5M', '15M', '30M', '1H', '4H', '1D', '1W', '1MN'];
 
-  // Convert data to candlestick format
+  // Convert data to line chart format for better compatibility
   const chartData = {
+    labels: data?.map((item, index) => index) || [],
     datasets: [
       {
         label: 'HAM Price',
-        data: data?.map((item, index) => ({
-          x: item.timestamp,
-          o: Number(item.open) || Number(item.hamValue) || 120,
-          h: Number(item.high) || Number(item.hamValue) + 2 || 125,
-          l: Number(item.low) || Number(item.hamValue) - 2 || 118,
-          c: Number(item.close) || Number(item.hamValue) || 122,
-        })) || [],
-        backgroundColor: function(context) {
-          const point = context.parsed;
-          return point.c >= point.o ? '#26a69a' : '#ef5350';
-        },
-        borderColor: function(context) {
-          const point = context.parsed;
-          return point.c >= point.o ? '#26a69a' : '#ef5350';
-        },
-        borderWidth: 1,
+        data: data?.map((item) => Number(item.hamValue) || 122) || [],
+        backgroundColor: 'rgba(33, 150, 243, 0.1)',
+        borderColor: '#2196F3',
+        borderWidth: 2,
+        tension: 0.1,
+        pointRadius: 1,
+        pointHoverRadius: 4,
+        fill: false,
       },
     ],
   };
@@ -102,13 +93,6 @@ const TradingInterface = ({ data }) => {
     },
     scales: {
       x: {
-        type: 'time',
-        time: {
-          unit: 'hour',
-          displayFormats: {
-            hour: 'HH:mm'
-          }
-        },
         grid: {
           color: '#2a2d3a',
           lineWidth: 1,
@@ -116,6 +100,13 @@ const TradingInterface = ({ data }) => {
         ticks: {
           color: '#8a8d99',
           maxTicksLimit: 10,
+          callback: function(value, index) {
+            if (data && data[index]) {
+              const date = new Date(data[index].timestamp);
+              return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+            return value;
+          }
         },
       },
       y: {
