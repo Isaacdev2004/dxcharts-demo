@@ -1,36 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { Chart } from 'react-chartjs-2';
-
-
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+import React, { useState, useEffect, useRef } from 'react';
+import { createChart, generateCandlesData } from '@devexperts/dxcharts-lite';
 
 const TradingInterface = ({ data }) => {
+  const chartRef = useRef(null);
+  const chartInstanceRef = useRef(null);
   const [selectedTimeframe, setSelectedTimeframe] = useState('1H');
   const [selectedSymbol, setSelectedSymbol] = useState('HAM/USD');
   const [currentPrice, setCurrentPrice] = useState(122.25);
   const [priceChange, setPriceChange] = useState(1.75);
   const [priceChangePercent, setPriceChangePercent] = useState(1.45);
+  const [chartType, setChartType] = useState('candle');
 
   // Trading symbols data
   const symbols = [
@@ -41,92 +20,101 @@ const TradingInterface = ({ data }) => {
   ];
 
   const timeframes = ['1M', '5M', '15M', '30M', '1H', '4H', '1D', '1W', '1MN'];
+  const chartTypes = ['candle', 'line', 'area', 'histogram'];
 
-  // Convert data to line chart format for better compatibility
-  const chartData = {
-    labels: data?.map((item, index) => index) || [],
-    datasets: [
-      {
-        label: 'HAM Price',
-        data: data?.map((item) => Number(item.hamValue) || 122) || [],
-        backgroundColor: 'rgba(33, 150, 243, 0.1)',
-        borderColor: '#2196F3',
-        borderWidth: 2,
-        tension: 0.1,
-        pointRadius: 1,
-        pointHoverRadius: 4,
-        fill: false,
-      },
-    ],
+  // Initialize DXCharts
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    const timer = setTimeout(() => {
+      try {
+        console.log('Creating DXCharts for Trading Interface...');
+
+        // Clean up previous instance
+        if (chartInstanceRef.current) {
+          try {
+            chartInstanceRef.current.destroy();
+          } catch (e) {
+            console.warn('Error destroying previous chart:', e);
+          }
+          chartInstanceRef.current = null;
+        }
+
+        // Create DXCharts instance
+        const chartInstance = createChart(chartRef.current);
+        chartInstanceRef.current = chartInstance;
+
+        console.log('DXCharts Trading Interface created successfully:', chartInstance);
+
+        if (data && data.length > 0) {
+          // Convert CSV data to DXCharts format
+          const candlesData = data.map((item) => ({
+            timestamp: item.timestamp,
+            open: Number(item.open) || Number(item.hamValue) || 120 + Math.random() * 2,
+            high: Number(item.high) || Number(item.hamValue) + 2 || 125 + Math.random() * 2,
+            low: Number(item.low) || Number(item.hamValue) - 2 || 118 + Math.random() * 2,
+            close: Number(item.close) || Number(item.hamValue) || 122 + Math.random() * 2,
+            volume: Number(item.volume) || Math.floor(Math.random() * 100000),
+            hi: Number(item.hamValue) || 122 + Math.random() * 2,
+            lo: Number(item.hamValue) || 122 + Math.random() * 2,
+          }));
+
+          chartInstance.setData({ candles: candlesData });
+        } else {
+          // Use generated sample data
+          const sampleCandles = generateCandlesData();
+          chartInstance.setData({ candles: sampleCandles });
+        }
+
+        // Set initial chart type
+        chartInstance.setChartType(chartType);
+        chartInstance.setShowWicks(true);
+
+        console.log('DXCharts Trading Interface setup completed!');
+
+      } catch (error) {
+        console.error('DXCharts Trading Interface error:', error);
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      if (chartInstanceRef.current) {
+        try {
+          chartInstanceRef.current.destroy();
+        } catch (error) {
+          console.warn('Error cleaning up DXCharts:', error);
+        }
+        chartInstanceRef.current = null;
+      }
+    };
+  }, [data, chartType]);
+
+  // Handle chart type change
+  const handleChartTypeChange = (newType) => {
+    setChartType(newType);
+    if (chartInstanceRef.current) {
+      try {
+        chartInstanceRef.current.setChartType(newType);
+        if (newType === 'candle') {
+          chartInstanceRef.current.setShowWicks(true);
+        }
+        console.log('Chart type changed to:', newType);
+      } catch (error) {
+        console.error('Error changing chart type:', error);
+      }
+    }
   };
 
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        mode: 'index',
-        intersect: false,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        borderColor: '#333',
-        borderWidth: 1,
-        callbacks: {
-          title: function(context) {
-            return new Date(context[0].parsed.x).toLocaleString();
-          },
-          label: function(context) {
-            const point = context.parsed;
-            return [
-              `Open: $${point.o?.toFixed(2)}`,
-              `High: $${point.h?.toFixed(2)}`,
-              `Low: $${point.l?.toFixed(2)}`,
-              `Close: $${point.c?.toFixed(2)}`,
-            ];
-          }
-        }
-      },
-    },
-    scales: {
-      x: {
-        grid: {
-          color: '#2a2d3a',
-          lineWidth: 1,
-        },
-        ticks: {
-          color: '#8a8d99',
-          maxTicksLimit: 10,
-          callback: function(value, index) {
-            if (data && data[index]) {
-              const date = new Date(data[index].timestamp);
-              return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            }
-            return value;
-          }
-        },
-      },
-      y: {
-        position: 'right',
-        grid: {
-          color: '#2a2d3a',
-          lineWidth: 1,
-        },
-        ticks: {
-          color: '#8a8d99',
-          callback: function(value) {
-            return '$' + value.toFixed(2);
-          }
-        },
-      },
-    },
-    interaction: {
-      intersect: false,
-      mode: 'index',
-    },
+  // Handle symbol change
+  const handleSymbolChange = (symbol) => {
+    setSelectedSymbol(symbol.symbol);
+    setCurrentPrice(symbol.price);
+    setPriceChange(symbol.change);
+    setPriceChangePercent(symbol.percent);
+    
+    // In a real app, you would load new data for the selected symbol
+    console.log('Symbol changed to:', symbol.symbol);
   };
 
   return (
@@ -149,7 +137,7 @@ const TradingInterface = ({ data }) => {
           <div className="search-section">
             <input 
               type="text" 
-              placeholder="Search..."
+              placeholder="Search symbols..."
               className="search-input"
             />
           </div>
@@ -160,7 +148,7 @@ const TradingInterface = ({ data }) => {
               <div 
                 key={index}
                 className={`symbol-item ${selectedSymbol === item.symbol ? 'active' : ''}`}
-                onClick={() => setSelectedSymbol(item.symbol)}
+                onClick={() => handleSymbolChange(item)}
               >
                 <div className="symbol-name">{item.symbol}</div>
                 <div className="symbol-price">{item.price.toFixed(2)}</div>
@@ -189,6 +177,20 @@ const TradingInterface = ({ data }) => {
               </div>
             </div>
 
+            {/* Chart Type Selector */}
+            <div className="chart-type-selector">
+              {chartTypes.map((type) => (
+                <button
+                  key={type}
+                  className={`chart-type-btn ${chartType === type ? 'active' : ''}`}
+                  onClick={() => handleChartTypeChange(type)}
+                  title={`Switch to ${type} chart`}
+                >
+                  {type === 'candle' ? '📊' : type === 'line' ? '📈' : type === 'area' ? '📉' : '📊'}
+                </button>
+              ))}
+            </div>
+
             {/* Timeframe Selector */}
             <div className="timeframe-selector">
               {timeframes.map((tf) => (
@@ -204,17 +206,41 @@ const TradingInterface = ({ data }) => {
 
             {/* Chart Controls */}
             <div className="chart-controls">
-              <button className="control-btn">📊</button>
-              <button className="control-btn">📏</button>
-              <button className="control-btn">⚙️</button>
-              <button className="control-btn">📷</button>
-              <button className="control-btn">🔍</button>
+              <button className="control-btn" title="Drawing Tools">📏</button>
+              <button className="control-btn" title="Indicators">📊</button>
+              <button className="control-btn" title="Settings">⚙️</button>
+              <button className="control-btn" title="Screenshot">📷</button>
+              <button className="control-btn" title="Fullscreen">🔍</button>
             </div>
           </div>
 
-          {/* Chart Container */}
+          {/* DXCharts Container */}
           <div className="chart-container">
-            <Chart type="line" data={chartData} options={chartOptions} />
+            <div
+              ref={chartRef}
+              style={{
+                width: '100%',
+                height: '100%',
+                backgroundColor: '#1e222d',
+                position: 'relative'
+              }}
+            />
+            
+            {/* Chart Type Indicator */}
+            <div style={{
+              position: 'absolute',
+              top: '10px',
+              left: '10px',
+              background: 'rgba(33, 150, 243, 0.9)',
+              color: 'white',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              zIndex: 100
+            }}>
+              DXCharts: {chartType.toUpperCase()}
+            </div>
           </div>
 
           {/* Trading Panel */}
@@ -245,7 +271,27 @@ const TradingInterface = ({ data }) => {
                 </div>
                 <div className="balance-item">
                   <span>Unrealized Net P&L:</span>
-                  <span>0.00</span>
+                  <span className="positive">0.00</span>
+                </div>
+              </div>
+
+              {/* DXCharts Info */}
+              <div style={{
+                marginTop: '16px',
+                padding: '12px',
+                background: '#1e222d',
+                borderRadius: '6px',
+                fontSize: '12px'
+              }}>
+                <div style={{ fontWeight: 'bold', color: '#2196f3', marginBottom: '8px' }}>
+                  📊 DXCharts Professional Features:
+                </div>
+                <div style={{ color: '#8a8d99', lineHeight: '1.4' }}>
+                  • Real-time candlestick charts<br/>
+                  • Multiple chart types: {chartTypes.join(', ')}<br/>
+                  • Professional trading tools<br/>
+                  • Technical analysis capabilities<br/>
+                  • High-performance rendering
                 </div>
               </div>
             </div>
